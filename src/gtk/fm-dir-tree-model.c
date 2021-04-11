@@ -242,6 +242,12 @@ static void on_theme_changed(GtkIconTheme* theme, FmDirTreeModel* model)
     gtk_tree_path_free(tp);
 }
 
+static void on_pane_icon_size_changed(FmConfig* cfg, gpointer user_data)
+{
+    FmDirTreeModel* model = FM_DIR_TREE_MODEL(user_data);
+    fm_dir_tree_model_set_icon_size (model, fm_config->pane_icon_size);
+}
+
 static void fm_dir_tree_model_dispose(GObject *object)
 {
     FmDirTreeModel *model;
@@ -253,6 +259,8 @@ static void fm_dir_tree_model_dispose(GObject *object)
 
     g_signal_handlers_disconnect_by_func(gtk_icon_theme_get_default(),
                                          on_theme_changed, model);
+    if (fm_config->cutdown_menus)
+        g_signal_handlers_disconnect_by_func (fm_config, on_pane_icon_size_changed, model);
 
     if(model->roots)
     {
@@ -270,6 +278,13 @@ static void fm_dir_tree_model_init(FmDirTreeModel *model)
 {
     g_signal_connect(gtk_icon_theme_get_default(), "changed",
                      G_CALLBACK(on_theme_changed), model);
+
+    if (fm_config->cutdown_menus)
+    {
+        g_signal_connect(fm_config, "changed::pane_icon_size", G_CALLBACK(on_pane_icon_size_changed), model);
+        model->icon_size = fm_config->pane_icon_size;
+    }
+    else
     model->icon_size = 16;
     model->stamp = g_random_int();
     /* TODO:
@@ -622,6 +637,32 @@ static void add_place_holder_child_item(FmDirTreeModel* model, GList* parent_l, 
     }
 }
 
+/* There seems to be no way to efficiently do the below using Fm* functions, so
+ * do it with GLib instead... */
+
+gboolean has_subdirs (FmFileInfo *fi)
+{
+    gboolean result = FALSE;
+    FmPath *path = fm_file_info_get_path (fi);
+    char *rpath = fm_path_display_name (path, TRUE);
+    GDir *dir = g_dir_open (rpath, 0, NULL);
+    if (dir)
+    {
+        const char *sub;
+        while (sub = g_dir_read_name (dir))
+        {
+            char *test = g_strdup_printf ("%s/%s", rpath, sub);
+            result = g_file_test (test, G_FILE_TEST_IS_DIR);
+            g_free (test);
+            if (result) break;
+        }
+    }
+
+    if (dir) g_dir_close (dir);
+    g_free (rpath);
+    return result;
+}
+
 /* Add a new node to parent node to proper position.
  * GtkTreePath tp is the tree path of parent node.
  * Returns GList item where new_item is incapsulated */
@@ -664,7 +705,13 @@ static GList* insert_item(FmDirTreeModel* model, GList* parent_l, GtkTreePath* t
     gtk_tree_model_row_inserted(GTK_TREE_MODEL(model), new_tp, &it);
 
     /* add a placeholder child item to make the node expandable */
-    if(!fm_config->no_child_non_expandable || fm_file_info_is_accessible(new_item->fi))
+    if (fm_config->real_expanders)
+    {
+        if (fm_file_info_is_accessible (new_item->fi) && has_subdirs (new_item->fi))
+            add_place_holder_child_item (model, new_item_l, new_tp, TRUE);
+    }
+    else
+    if(fm_config->cutdown_menus || !fm_config->no_child_non_expandable || fm_file_info_is_accessible(new_item->fi))
         add_place_holder_child_item(model, new_item_l, new_tp, TRUE);
     gtk_tree_path_free(new_tp);
 
@@ -715,7 +762,13 @@ static void remove_item_l(FmDirTreeModel* model, GList* item_l)
         {
             GList* parent_l = item->parent;
             gtk_tree_path_up(tp);
-            if(fm_config->no_child_non_expandable)
+            if (fm_config->real_expanders)
+            {
+                GtkTreeIter it;
+                item_to_tree_iter(model, parent_l, &it);
+                gtk_tree_model_row_has_child_toggled(GTK_TREE_MODEL(model), tp, &it);
+            } else
+            if(!fm_config->cutdown_menus && fm_config->no_child_non_expandable)
             {
                 GtkTreeIter it;
                 item_to_tree_iter(model, parent_l, &it);
@@ -990,8 +1043,11 @@ void fm_dir_tree_model_load_row(FmDirTreeModel* model, GtkTreeIter* it, GtkTreeP
         g_signal_connect(folder, "files-removed", G_CALLBACK(on_folder_files_removed), item_l);
         g_signal_connect(folder, "files-changed", G_CALLBACK(on_folder_files_changed), item_l);
 
+        if (!fm_config->real_expanders)
+        {
         if(!item->children)
             add_place_holder_child_item(model, item_l, tp, TRUE);
+        }
         /* set 'expanded' flag beforehand as callback may check it */
         item->expanded = TRUE;
         /* if the folder is already loaded, call "loaded" handler ourselves */
@@ -1072,6 +1128,7 @@ void fm_dir_tree_model_set_icon_size(FmDirTreeModel* model, guint icon_size)
 {
     if(model->icon_size != icon_size)
     {
+        model->icon_size = icon_size;
         /* reload existing icons */
         GtkTreePath* tp = gtk_tree_path_new_first();
         GList* l;

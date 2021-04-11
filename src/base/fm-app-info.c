@@ -282,7 +282,7 @@ static gboolean do_launch(GAppInfo* appinfo, const char* full_desktop_path,
     GPid pid;
 
     cmd = expand_exec_macros(appinfo, full_desktop_path, kf, inp, &gfiles);
-    g_print("%s\n", cmd);
+    //g_print("%s\n", cmd);
     if (cmd == NULL || cmd[0] == '\0')
     {
         g_free(cmd);
@@ -356,9 +356,19 @@ static gboolean do_launch(GAppInfo* appinfo, const char* full_desktop_path,
 
         data.pgid = getpgid(getppid());
                         /* only absolute path is usable, ignore others */
+#ifdef FIX_ENV
+        /* Remove the GDK_BACKEND variable from the parent environment */
+        gchar **environ = g_get_environ ();
+        environ = g_environ_unsetenv (environ, "GDK_BACKEND");
+
+        ret = g_spawn_async((path && path[0] == '/') ? path : NULL, argv, environ,
+                            G_SPAWN_SEARCH_PATH | G_SPAWN_DO_NOT_REAP_CHILD,
+                            child_setup, &data, &pid, err);
+#else
         ret = g_spawn_async((path && path[0] == '/') ? path : NULL, argv, NULL,
                             G_SPAWN_SEARCH_PATH | G_SPAWN_DO_NOT_REAP_CHILD,
                             child_setup, &data, &pid, err);
+#endif
         if (ret)
             /* Ensure that we don't double fork and break pkexec */
             g_child_watch_add(pid, child_watch, NULL);
@@ -366,6 +376,9 @@ static gboolean do_launch(GAppInfo* appinfo, const char* full_desktop_path,
             /* Notify launch context about failure */
             g_app_launch_context_launch_failed(ctx, data.sn_id);
 
+#ifdef FIX_ENV
+        g_free (environ);
+#endif
         g_free(path);
         g_free(data.sn_id);
 

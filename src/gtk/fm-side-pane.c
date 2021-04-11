@@ -41,6 +41,7 @@
 #include "fm-dir-tree-model.h"
 #include "fm-dir-tree-view.h"
 #include "fm-file-info-job.h"
+#include "fm-config.h"
 
 #include <glib/gi18n-lib.h>
 
@@ -51,7 +52,6 @@ enum
     N_SIGNALS
 };
 static guint signals[N_SIGNALS];
-static FmDirTreeModel* dir_tree_model = NULL;
 
 static char menu_xml[] =
 "<popup>"
@@ -232,8 +232,10 @@ static void fm_side_pane_init(FmSidePane *sp)
     sp->menu = gtk_ui_manager_get_widget(sp->ui, "/popup");
 
     sp->scroll = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_shadow_type((GtkScrolledWindow*)sp->scroll, GTK_SHADOW_IN);
 
-    gtk_box_pack_start(GTK_BOX(sp), sp->title_bar, FALSE, TRUE, 0);
+    if (!fm_config->cutdown_menus) gtk_box_pack_start(GTK_BOX(sp), sp->title_bar, FALSE, TRUE, 0);
+    else gtk_box_set_spacing (GTK_BOX (sp), 5);
     gtk_box_pack_start(GTK_BOX(sp), sp->scroll, TRUE, TRUE, 0);
     gtk_widget_show_all(GTK_WIDGET(sp));
 }
@@ -290,6 +292,10 @@ void fm_side_pane_chdir(FmSidePane* sp, FmPath* path)
         fm_places_view_chdir(FM_PLACES_VIEW(sp->view), path);
         break;
     case FM_SP_DIR_TREE:
+        fm_dir_tree_view_chdir(FM_DIR_TREE_VIEW(sp->view), path);
+        break;
+    case FM_SP_HYBRID:
+        fm_places_view_chdir(FM_PLACES_VIEW(sp->view2), path);
         fm_dir_tree_view_chdir(FM_DIR_TREE_VIEW(sp->view), path);
         break;
     default:
@@ -359,6 +365,17 @@ static void fm_side_pane_dispose(GObject *object)
                 g_signal_handlers_disconnect_by_func(sp->view, on_item_popup, sp);
             g_signal_handlers_disconnect_by_func(sp->view, on_dirtree_chdir, sp);
             break;
+        case FM_SP_HYBRID:
+            if (sp->update_popup)
+            {
+                g_signal_handlers_disconnect_by_func(sp->view, on_item_popup, sp);
+                g_signal_handlers_disconnect_by_func(sp->view2, on_item_popup, sp);
+            }
+            g_signal_handlers_disconnect_by_func(sp->view, on_dirtree_chdir, sp);
+            g_signal_handlers_disconnect_by_func(sp->view2, on_places_chdir, sp);
+            gtk_widget_destroy(sp->view2);
+            sp->view2 = NULL;
+            break;
         default: ; /* other values are impossible, otherwise it's a bug */
         }
         gtk_widget_destroy(sp->view);
@@ -370,15 +387,11 @@ static void fm_side_pane_dispose(GObject *object)
 
 static void init_dir_tree(FmSidePane* sp)
 {
-    if(dir_tree_model)
-        g_object_ref(dir_tree_model);
-    else
-    {
         FmFileInfoJob* job = fm_file_info_job_new(NULL, FM_FILE_INFO_JOB_NONE);
         GList* l;
         /* query FmFileInfo for home dir and root dir, and then,
          * add them to dir tree model */
-        fm_file_info_job_add(job, fm_path_get_home());
+        if (!fm_config->cutdown_menus) fm_file_info_job_add(job, fm_path_get_home());
         fm_file_info_job_add(job, fm_path_get_root());
 
         /* FIXME: maybe it's cleaner to use run_async here? */
@@ -386,7 +399,7 @@ static void init_dir_tree(FmSidePane* sp)
         fm_job_run_sync_with_mainloop(FM_JOB(job));
         GDK_THREADS_ENTER();
 
-        dir_tree_model = fm_dir_tree_model_new();
+        FmDirTreeModel* dir_tree_model = fm_dir_tree_model_new();
         for(l = fm_file_info_list_peek_head_link(job->file_infos); l; l = l->next)
         {
             FmFileInfo* fi = FM_FILE_INFO(l->data);
@@ -394,8 +407,6 @@ static void init_dir_tree(FmSidePane* sp)
         }
         g_object_unref(job);
 
-        g_object_add_weak_pointer((GObject*)dir_tree_model, (gpointer*)&dir_tree_model);
-    }
     gtk_tree_view_set_model(GTK_TREE_VIEW(sp->view), GTK_TREE_MODEL(dir_tree_model));
     g_object_unref(dir_tree_model);
 }
@@ -420,7 +431,53 @@ void fm_side_pane_set_mode(FmSidePane* sp, FmSidePaneMode mode)
             g_signal_handlers_disconnect_by_func(sp->view, on_item_popup, sp);
         gtk_widget_destroy(sp->view);
     }
+    if (sp->view2)
+    {
+        if (sp->update_popup)
+            g_signal_handlers_disconnect_by_func (sp->view2, on_item_popup, sp);
+        gtk_widget_destroy (sp->view2);
+        gtk_widget_destroy (sp->box);
+        sp->view2 = NULL;
+    }
+
     sp->mode = mode;
+
+    if (mode == FM_SP_HYBRID)
+    {
+        /* create a dir tree */
+        sp->view = (GtkWidget*) fm_dir_tree_view_new ();
+        init_dir_tree (sp);
+        fm_dir_tree_view_chdir (FM_DIR_TREE_VIEW (sp->view), sp->cwd);
+        gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (sp->scroll),
+                GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+        g_signal_connect (sp->view, "chdir", G_CALLBACK (on_dirtree_chdir), sp);
+        if (sp->update_popup)
+            g_signal_connect (sp->view, "item-popup", G_CALLBACK (on_item_popup), sp);
+        gtk_widget_show (sp->view);
+        gtk_container_add(GTK_CONTAINER(sp->scroll), sp->view);
+
+        /* create places view */
+        sp->view2 = (GtkWidget*) fm_places_view_new ();
+        fm_places_view_chdir (FM_PLACES_VIEW (sp->view2), sp->cwd);
+        g_signal_connect (sp->view2, "chdir", G_CALLBACK (on_places_chdir), sp);
+        if (sp->update_popup)
+            g_signal_connect (sp->view2, "item-popup", G_CALLBACK (on_item_popup), sp);
+
+        /* create a non-scrolling scrolled window to put it in... */
+        sp->box = gtk_scrolled_window_new (NULL, NULL);
+        gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (sp->box),
+                GTK_POLICY_NEVER, GTK_POLICY_NEVER);
+        gtk_scrolled_window_set_shadow_type (GTK_SCROLLED_WINDOW (sp->box), GTK_SHADOW_IN);
+
+        /* prepend the places view to the sidebar */
+        gtk_container_add (GTK_CONTAINER(sp->box), sp->view2);
+        gtk_widget_show_all (sp->box);
+        gtk_box_pack_start (GTK_BOX (sp), sp->box, FALSE, 0, 0);
+        gtk_box_reorder_child (GTK_BOX (sp), sp->box, 0);
+
+        g_signal_emit (sp, signals[MODE_CHANGED], 0);
+        return;
+    }
 
     switch(mode)
     {
@@ -523,6 +580,13 @@ void fm_side_pane_set_popup_updater(FmSidePane* sp,
             if (update_popup == NULL)
                 g_signal_handlers_disconnect_by_func(sp->view, on_item_popup, sp);
             break;
+        case FM_SP_HYBRID:
+            if (update_popup == NULL)
+            {
+                g_signal_handlers_disconnect_by_func(sp->view, on_item_popup, sp);
+                g_signal_handlers_disconnect_by_func(sp->view2, on_item_popup, sp);
+            }
+            break;
         default: ;
         }
     }
@@ -533,6 +597,10 @@ void fm_side_pane_set_popup_updater(FmSidePane* sp,
         case FM_SP_PLACES:
         case FM_SP_DIR_TREE:
             g_signal_connect(sp->view, "item-popup", G_CALLBACK(on_item_popup), sp);
+            break;
+        case FM_SP_HYBRID:
+            g_signal_connect(sp->view, "item-popup", G_CALLBACK(on_item_popup), sp);
+            g_signal_connect(sp->view2, "item-popup", G_CALLBACK(on_item_popup), sp);
             break;
         default: ;
         }
@@ -599,7 +667,7 @@ FmSidePaneMode fm_side_pane_get_mode_by_name(const char *str)
  */
 gint fm_side_pane_get_n_modes(void)
 {
-    return (FM_SP_DIR_TREE + 1);
+    return (FM_SP_HYBRID + 1);
 }
 
 /**
@@ -665,15 +733,29 @@ gboolean fm_side_pane_set_show_hidden(FmSidePane *sp, gboolean show_hidden)
 {
     GObjectClass *klass;
     GParamSpec *spec;
+    gboolean ret = FALSE;
 
-    if (sp->view == NULL)
-        return FALSE;
-    klass = G_OBJECT_GET_CLASS(sp->view);
-    spec = g_object_class_find_property(klass, "show-hidden");
-    if (spec == NULL || spec->value_type != G_TYPE_BOOLEAN)
-        return FALSE; /* isn't supported by view */
-    g_object_set(sp->view, "show-hidden", show_hidden, NULL);
-    return TRUE;
+    if (sp->view != NULL)
+    {
+        klass = G_OBJECT_GET_CLASS(sp->view);
+        spec = g_object_class_find_property(klass, "show-hidden");
+        if (spec != NULL && spec->value_type == G_TYPE_BOOLEAN)
+        {
+            g_object_set(sp->view, "show-hidden", show_hidden, NULL);
+            ret = TRUE;
+        }
+    }
+    if (sp->view2 != NULL)
+    {
+        klass = G_OBJECT_GET_CLASS(sp->view2);
+        spec = g_object_class_find_property(klass, "show-hidden");
+        if (spec != NULL && spec->value_type == G_TYPE_BOOLEAN)
+        {
+            g_object_set(sp->view2, "show-hidden", show_hidden, NULL);
+            ret = TRUE;
+        }
+    }
+    return ret;
 }
 
 /**
@@ -692,13 +774,27 @@ gboolean fm_side_pane_set_home_dir(FmSidePane *sp, const char *home_dir)
 {
     GObjectClass *klass;
     GParamSpec *spec;
+    gboolean ret = FALSE;
 
     if (sp->view == NULL)
-        return FALSE;
-    klass = G_OBJECT_GET_CLASS(sp->view);
-    spec = g_object_class_find_property(klass, "home-dir-path");
-    if (spec == NULL || spec->value_type != G_TYPE_STRING)
-        return FALSE; /* isn't supported by view */
-    g_object_set(sp->view, "home-dir-path", home_dir, NULL);
-    return TRUE;
+    {
+        klass = G_OBJECT_GET_CLASS(sp->view);
+        spec = g_object_class_find_property(klass, "home-dir-path");
+        if (spec != NULL && spec->value_type == G_TYPE_STRING)
+        {
+            g_object_set(sp->view, "home-dir-path", home_dir, NULL);
+            ret = TRUE;
+        }
+    }
+    if (sp->view2 == NULL)
+    {
+        klass = G_OBJECT_GET_CLASS(sp->view2);
+        spec = g_object_class_find_property(klass, "home-dir-path");
+        if (spec != NULL && spec->value_type == G_TYPE_STRING)
+        {
+            g_object_set(sp->view2, "home-dir-path", home_dir, NULL);
+            ret = TRUE;
+        }
+    }
+    return ret;
 }

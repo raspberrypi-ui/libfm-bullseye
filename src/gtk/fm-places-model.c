@@ -95,6 +95,7 @@ struct _FmPlacesModel
     guint places_applications_change_handler;
     guint places_network_change_handler;
     guint places_unmounted_change_handler;
+    guint places_volmounts_change_handler;
     GdkPixbuf* eject_icon;
 
     GSList* jobs;
@@ -183,7 +184,7 @@ static void on_file_info_job_finished(FmFileInfoJob* job, gpointer user_data)
                         fm_file_info_unref(item->fi);
                         item->fi = fm_file_info_ref(fi);
                         /* only update the icon if the item is not a volume or mount. */
-                        if(item->type == FM_PLACES_ITEM_PATH)
+                        if(item->type == FM_PLACES_ITEM_PATH && !fm_path_equal (path, fm_path_get_root()))
                         {
                             icon = fm_file_info_get_icon(fi);
                             /* replace the icon with updated data */
@@ -459,6 +460,7 @@ static void on_volume_added(GVolumeMonitor* vm, GVolume* volume, gpointer user_d
     FmPlacesItem* item;
     GMount *mount;
     GtkTreeIter it;
+    if (!fm_config->places_volmounts) return;
 
     /* nothing to do if we don't show unmounted volumes */
     if (!fm_config->places_unmounted)
@@ -516,6 +518,7 @@ static void on_mount_added(GVolumeMonitor* vm, GMount* mount, gpointer user_data
 {
     FmPlacesModel* model = FM_PLACES_MODEL(user_data);
     GVolume* vol;
+    if (!fm_config->places_volmounts) return;
 
     if (g_mount_is_shadowed(mount))
         return;
@@ -946,6 +949,171 @@ static void on_places_unmounted_changed(FmConfig* cfg, gpointer user_data)
     g_list_free(vols);
 }
 
+static void on_places_volmounts_changed (FmConfig* cfg, gpointer user_data)
+{
+    FmPlacesModel *model = FM_PLACES_MODEL (user_data);
+    GVolume *vol;
+    GMount *mnt;
+    FmPlacesItem *item;
+    GList *vols, *mnts, *l;
+    FmFileInfoJob *job = NULL;
+    GtkTreeIter it;
+
+    if (cfg->places_volmounts) job = fm_file_info_job_new (NULL, FM_FILE_INFO_JOB_NONE);
+
+    vols = g_volume_monitor_get_volumes (model->vol_mon);
+    for (l = vols; l; l = l->next)
+    {
+        vol = G_VOLUME (l->data);
+        item = find_volume (model, vol, &it);
+        if (item)
+        {
+            if (!cfg->places_unmounted || !cfg->places_volmounts)
+            {
+                gtk_list_store_remove (GTK_LIST_STORE (model), &it);
+                place_item_free (item);
+            }
+        }
+        else
+        {
+            if (cfg->places_unmounted && cfg->places_volmounts)
+                add_volume_or_mount (model, G_OBJECT (vol), job);
+        }
+        g_object_unref(vol);
+    }
+
+    mnts = g_volume_monitor_get_mounts (model->vol_mon);
+    for (l = mnts; l; l = l->next)
+    {
+        mnt = G_MOUNT (l->data);
+        vol = g_mount_get_volume (mnt);
+        if (vol) g_object_unref (vol);
+        else
+        {
+            item = find_mount (model, mnt, &it);
+            if (item)
+            {
+                if (!cfg->places_volmounts)
+                {
+                    gtk_list_store_remove (GTK_LIST_STORE (model), &it);
+                    place_item_free (item);
+                }
+            }
+            else
+            {
+                if (cfg->places_volmounts)
+                    add_volume_or_mount (model, G_OBJECT (mnt), job);
+            }
+        }
+        g_object_unref (mnt);
+    }
+
+    if (job)
+    {
+        g_signal_connect (job, "finished", G_CALLBACK (on_file_info_job_finished), model);
+        model->jobs = g_slist_prepend (model->jobs, job);
+        if (!fm_job_run_async (FM_JOB (job)))
+        {
+            model->jobs = g_slist_remove (model->jobs, job);
+            g_object_unref (job);
+            g_critical ("fm_job_run_async() failed on volumes update");
+        }
+    }
+    g_list_free (vols);
+    g_list_free (mnts);
+}
+
+static gboolean _clear_item (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
+{
+    FmPlacesItem *item;
+    gtk_tree_model_get (model, iter, FM_PLACES_MODEL_COL_INFO, &item, -1);
+    if (item) place_item_free (item);
+    return FALSE;
+}
+
+void fm_places_model_reload (FmPlacesModel *self)
+{
+    GtkTreeIter it;
+    GList *vols, *l;
+    FmPath *path;
+    GtkListStore* model = &self->parent;
+    FmFileInfoJob* job = fm_file_info_job_new (NULL, FM_FILE_INFO_JOB_FOLLOW_SYMLINK);
+
+    // clear the places list store before reloading
+    gtk_tree_model_foreach (GTK_TREE_MODEL (model), _clear_item, NULL);
+    gtk_list_store_clear (model);
+
+    if (fm_config->places_home)
+        new_path_item (model, &it, fm_path_get_home (), FM_PLACES_ID_HOME, _("Home Folder"), "user-home", job);
+
+    if (fm_config->places_desktop && g_file_test (g_get_user_special_dir(G_USER_DIRECTORY_DESKTOP), G_FILE_TEST_IS_DIR))
+        new_path_item (model, &it, fm_path_get_desktop (), FM_PLACES_ID_DESKTOP, _("Desktop"), "user-desktop", job);
+
+    if (fm_config->places_root)
+        new_path_item (model, &it, fm_path_get_root (), FM_PLACES_ID_ROOT, _("Filesystem Root"), "drive-harddisk", job);
+
+    if (fm_config->places_computer)
+    {
+        path = fm_path_new_for_uri ("computer:///");
+        new_path_item (model, &it, path, FM_PLACES_ID_COMPUTER, _("Devices"), "computer", job);
+        fm_path_unref (path);
+    }
+
+    if (fm_config->places_applications && fm_module_is_in_use ("vfs", "menu"))
+        new_path_item (model, &it, fm_path_get_apps_menu (), FM_PLACES_ID_APPLICATIONS, _("Applications"), "system-software-install", job);
+
+    if (fm_config->places_network)
+    {
+        path = fm_path_new_for_uri ("network:///");
+        new_path_item (model, &it, path, FM_PLACES_ID_NETWORK, _("Network"), GTK_STOCK_NETWORK, job);
+        fm_path_unref (path);
+    }
+
+    gtk_list_store_append (model, &it);
+    GtkTreePath* tp = gtk_tree_model_get_path (GTK_TREE_MODEL (self), &it);
+    self->separator = gtk_tree_row_reference_new (GTK_TREE_MODEL (self), tp);
+    gtk_tree_path_free (tp);
+
+    if (fm_config->use_trash && fm_config->places_trash) create_trash_item (self);
+
+    if (fm_config->places_volmounts)
+    {
+        if (fm_config->places_unmounted)
+        {
+            vols = g_volume_monitor_get_volumes (self->vol_mon);
+            for (l = vols; l; l = l->next)
+            {
+                GVolume* vol = G_VOLUME (l->data);
+                add_volume_or_mount (self, G_OBJECT(vol), job);
+                g_object_unref (vol);
+            }
+            g_list_free (vols);
+        }
+
+        vols = g_volume_monitor_get_mounts (self->vol_mon);
+        for(l = vols; l; l = l->next)
+        {
+            GMount* mount = G_MOUNT (l->data);
+            GVolume* volume = g_mount_get_volume (mount);
+            if (volume) g_object_unref (volume);
+            else add_volume_or_mount (self, G_OBJECT (mount), job);
+            g_object_unref (mount);
+        }
+        g_list_free (vols);
+    }
+
+    add_bookmarks (self, job);
+
+    g_signal_connect (job, "finished", G_CALLBACK (on_file_info_job_finished), self);
+    self->jobs = g_slist_prepend (self->jobs, job);
+    if (!fm_job_run_async (FM_JOB (job)))
+    {
+        self->jobs = g_slist_remove (self->jobs, job);
+        g_object_unref (job);
+        g_critical ("fm_job_run_async() failed on places view init");
+    }
+}
+
 static void fm_places_model_init(FmPlacesModel *self)
 {
     GType types[] = {GDK_TYPE_PIXBUF, G_TYPE_STRING, G_TYPE_POINTER};
@@ -981,6 +1149,8 @@ static void fm_places_model_init(FmPlacesModel *self)
                                              G_CALLBACK(on_places_network_changed), self);
     self->places_unmounted_change_handler = g_signal_connect(fm_config, "changed::places_unmounted",
                                              G_CALLBACK(on_places_unmounted_changed), self);
+    self->places_volmounts_change_handler = g_signal_connect(fm_config, "changed::places_volmounts",
+                                             G_CALLBACK(on_places_volmounts_changed), self);
 
     self->pane_icon_size_change_handler = g_signal_connect(fm_config, "changed::pane_icon_size",
                                              G_CALLBACK(on_pane_icon_size_changed), self);
@@ -1054,6 +1224,8 @@ static void fm_places_model_init(FmPlacesModel *self)
     if(fm_config->use_trash && fm_config->places_trash)
         create_trash_item(self);
 
+    if (fm_config->places_volmounts)
+    {
     /* add volumes to side-pane */
     /* respect fm_config->places_unmounted */
     if (fm_config->places_unmounted)
@@ -1081,6 +1253,7 @@ static void fm_places_model_init(FmPlacesModel *self)
         g_object_unref(mount);
     }
     g_list_free(vols);
+    }
 
     self->bookmarks = fm_bookmarks_dup(); /* bookmarks */
     if(self->bookmarks)
@@ -1332,6 +1505,11 @@ static void fm_places_model_dispose(GObject *object)
     {
         g_signal_handler_disconnect(fm_config, self->places_unmounted_change_handler);
         self->places_unmounted_change_handler = 0;
+    }
+    if(self->places_volmounts_change_handler)
+    {
+        g_signal_handler_disconnect(fm_config, self->places_volmounts_change_handler);
+        self->places_volmounts_change_handler = 0;
     }
     if(self->pane_icon_size_change_handler)
     {
