@@ -50,13 +50,14 @@ typedef enum
     FM_FV_ICON_VIEW,
     FM_FV_COMPACT_VIEW,
     FM_FV_THUMBNAIL_VIEW,
-    FM_FV_LIST_VIEW
+    FM_FV_LIST_VIEW,
+    FM_FV_ICON_OR_THUMB_VIEW
 } FmStandardViewMode;
 
 #ifndef FM_DISABLE_DEPRECATED
 #define FM_FOLDER_VIEW_MODE_IS_VALID(mode) FM_STANDARD_VIEW_MODE_IS_VALID(mode)
 #endif
-#define FM_STANDARD_VIEW_MODE_IS_VALID(mode)  ((guint)mode <= FM_FV_LIST_VIEW)
+#define FM_STANDARD_VIEW_MODE_IS_VALID(mode)  ((guint)mode <= FM_FV_ICON_OR_THUMB_VIEW)
 
 typedef struct _FmStandardView             FmStandardView;
 typedef struct _FmStandardViewClass        FmStandardViewClass;
@@ -68,6 +69,8 @@ FmStandardView* fm_standard_view_new(FmStandardViewMode mode,
 
 void fm_standard_view_set_mode(FmStandardView* fv, FmStandardViewMode mode);
 FmStandardViewMode fm_standard_view_get_mode(FmStandardView* fv);
+void fm_standard_view_set_thumbs(FmStandardView* fv, gboolean thumbs);
+gboolean fm_standard_view_get_thumbs(FmStandardView* fv);
 
 const char* fm_standard_view_mode_to_str(FmStandardViewMode mode);
 FmStandardViewMode fm_standard_view_mode_from_str(const char* str);

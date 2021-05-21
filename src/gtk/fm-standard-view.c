@@ -62,6 +62,7 @@ struct _FmStandardView
     GtkSelectionMode sel_mode;
 
     gboolean show_hidden;
+    gboolean show_thumbs;
 
     GtkWidget* view; /* either ExoIconView or ExoTreeView */
     FmFolderModel* model; /* FmStandardView doesn't use abstract GtkTreeModel! */
@@ -441,7 +442,7 @@ static void on_show_full_names_changed(FmConfig* cfg, FmStandardView* fv)
                        + pango_font_metrics_get_descent(metrics)) / PANGO_SCALE + 1;
         pango_font_metrics_unref(metrics);
     }
-    if(fv->mode == FM_FV_ICON_VIEW)
+    if(fv->mode == FM_FV_ICON_VIEW || fv->mode == FM_FV_ICON_OR_THUMB_VIEW)
         font_height *= 3;
     else /* thumbnail view */
         font_height *= 5;
@@ -595,7 +596,7 @@ static inline void create_icon_view(FmStandardView* fv, GList* sels)
                            + pango_font_metrics_get_descent(metrics)) / PANGO_SCALE + 1;
             pango_font_metrics_unref(metrics);
         }
-        if(fv->mode == FM_FV_ICON_VIEW)
+        if(fv->mode == FM_FV_ICON_VIEW || fv->mode == FM_FV_ICON_OR_THUMB_VIEW)
         {
             fv->icon_size_changed_handler = g_signal_connect(fm_config, "changed::big_icon_size", G_CALLBACK(on_big_icon_size_changed), fv);
             icon_size = fm_config->big_icon_size;
@@ -603,7 +604,8 @@ static inline void create_icon_view(FmStandardView* fv, GList* sels)
             if(model)
             {
                 fm_folder_model_set_icon_size(model, icon_size);
-                fm_folder_model_show_thumbnails(model, FALSE);
+                if (fv->mode == FM_FV_ICON_OR_THUMB_VIEW) fm_folder_model_show_thumbnails (model, fv->show_thumbs);
+                else fm_folder_model_show_thumbnails(model, FALSE);
             }
 
             render = fm_cell_renderer_text_new();
@@ -1212,6 +1214,7 @@ void fm_standard_view_set_mode(FmStandardView* fv, FmStandardViewMode mode)
         case FM_FV_COMPACT_VIEW:
         case FM_FV_ICON_VIEW:
         case FM_FV_THUMBNAIL_VIEW:
+        case FM_FV_ICON_OR_THUMB_VIEW:
             create_icon_view(fv, sels);
             fv->set_single_click = (void(*)(GtkWidget*,gboolean))exo_icon_view_set_single_click;
             fv->set_auto_selection_delay = (void(*)(GtkWidget*,gint))exo_icon_view_set_single_click_timeout;
@@ -1308,6 +1311,7 @@ static void fm_standard_view_set_selection_mode(FmFolderView* ffv, GtkSelectionM
         case FM_FV_ICON_VIEW:
         case FM_FV_COMPACT_VIEW:
         case FM_FV_THUMBNAIL_VIEW:
+        case FM_FV_ICON_OR_THUMB_VIEW:
             exo_icon_view_set_selection_mode(EXO_ICON_VIEW(fv->view), mode);
             break;
         }
@@ -1348,6 +1352,7 @@ static GList* fm_standard_view_get_selected_tree_paths(FmStandardView* fv)
     case FM_FV_ICON_VIEW:
     case FM_FV_COMPACT_VIEW:
     case FM_FV_THUMBNAIL_VIEW:
+    case FM_FV_ICON_OR_THUMB_VIEW:
         sels = exo_icon_view_get_selected_items(EXO_ICON_VIEW(fv->view));
         break;
     }
@@ -1418,6 +1423,7 @@ static gint fm_standard_view_count_selected_files(FmFolderView* ffv)
     case FM_FV_ICON_VIEW:
     case FM_FV_COMPACT_VIEW:
     case FM_FV_THUMBNAIL_VIEW:
+    case FM_FV_ICON_OR_THUMB_VIEW:
         count = exo_icon_view_count_selected_items(EXO_ICON_VIEW(fv->view));
         break;
     }
@@ -1444,6 +1450,7 @@ static gboolean on_btn_pressed(GtkWidget* view, GdkEventButton* evt, FmStandardV
             case FM_FV_ICON_VIEW:
             case FM_FV_COMPACT_VIEW:
             case FM_FV_THUMBNAIL_VIEW:
+            case FM_FV_ICON_OR_THUMB_VIEW:
                 /* select the item on right click for ExoIconView */
                 if(exo_icon_view_get_item_at_pos(EXO_ICON_VIEW(view), evt->x, evt->y, &tp, NULL))
                 {
@@ -1657,6 +1664,15 @@ static void fm_standard_view_set_model(FmFolderView* ffv, FmFolderModel* model)
         }
         exo_icon_view_set_model(EXO_ICON_VIEW(fv->view), GTK_TREE_MODEL(model));
         break;
+    case FM_FV_ICON_OR_THUMB_VIEW:
+        icon_size = fm_config->big_icon_size;
+        if(model)
+        {
+            fm_folder_model_set_icon_size(model, icon_size);
+            fm_folder_model_show_thumbnails (model, fv->show_thumbs);
+        }
+        exo_icon_view_set_model(EXO_ICON_VIEW(fv->view), GTK_TREE_MODEL(model));
+        break;
     case FM_FV_COMPACT_VIEW:
         if(model)
         {
@@ -1831,6 +1847,7 @@ static void _fm_standard_view_scroll_to_path(FmFolderView* fv, FmPath *path, gbo
     case FM_FV_ICON_VIEW:
     case FM_FV_COMPACT_VIEW:
     case FM_FV_THUMBNAIL_VIEW:
+    case FM_FV_ICON_OR_THUMB_VIEW:
         exo_icon_view_scroll_to_path(EXO_ICON_VIEW(view->view), tp, TRUE, 0.5, 0.5);
         if (focus)
             exo_icon_view_set_cursor(EXO_ICON_VIEW(view->view), tp, NULL, FALSE);
@@ -1876,7 +1893,8 @@ static const FmStandardViewModeinfo view_mode_names[] =
     { "icon", FM_FV_ICON_VIEW, NULL, N_("_Icon View"), NULL },
     { "compact", FM_FV_COMPACT_VIEW, NULL, N_("_Compact View"), NULL },
     { "thumbnail", FM_FV_THUMBNAIL_VIEW, NULL, N_("_Thumbnail View"), NULL },
-    { "list", FM_FV_LIST_VIEW, NULL, N_("Detailed _List View"), NULL }
+    { "list", FM_FV_LIST_VIEW, NULL, N_("Detailed _List View"), NULL },
+    { "icon_thumb", FM_FV_ICON_OR_THUMB_VIEW, NULL, N_("_Icon or Thumb View"), NULL },
 };
 
 /**
@@ -2001,4 +2019,14 @@ const char *fm_standard_view_get_mode_icon(FmStandardViewMode mode)
             if(view_mode_names[i].mode == mode)
                 return view_mode_names[i].icon;
     return NULL;
+}
+
+void fm_standard_view_set_thumbs(FmStandardView* fv, gboolean thumbs)
+{
+    fv->show_thumbs = thumbs;
+}
+
+gboolean fm_standard_view_get_thumbs(FmStandardView* fv)
+{
+    return fv->show_thumbs;
 }
