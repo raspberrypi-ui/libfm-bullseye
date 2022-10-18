@@ -540,6 +540,7 @@ static gboolean fm_dnd_dest_files_dropped(FmDndDest* dd, int x, int y,
     default: /* invalid combination */
         return FALSE;
     }
+    clear_src_cache (dd);
     return TRUE;
 }
 
