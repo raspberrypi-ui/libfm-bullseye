@@ -127,6 +127,8 @@ enum
     N_SIGNALS
 };
 
+FmDndDest *dnd_from = NULL;
+
 GtkTargetEntry fm_default_dnd_dest_targets[] =
 {
     {"application/x-fmlist-ptr", GTK_TARGET_SAME_APP, FM_DND_DEST_TARGET_FM_LIST},
@@ -541,6 +543,11 @@ static gboolean fm_dnd_dest_files_dropped(FmDndDest* dd, int x, int y,
         return FALSE;
     }
     clear_src_cache (dd);
+    if (dnd_from)
+    {
+        clear_src_cache (dnd_from);
+        dnd_from = NULL;
+    }
     return TRUE;
 }
 
@@ -976,6 +983,7 @@ GdkDragAction fm_dnd_dest_get_default_action(FmDndDest* dd,
     /* we have no valid data, query it now */
     if(!dd->src_files || dd->context != drag_context)
     {
+        if (!dnd_from) dnd_from = dd;
 query_sources:
         if (dd->context != drag_context)
             clear_src_cache(dd);
