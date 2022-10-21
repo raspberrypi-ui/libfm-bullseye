@@ -89,7 +89,6 @@
 #include <stdlib.h>
 #include <gdk/gdkkeysyms.h>
 
-
 #include "fm-folder-view.h"
 #include "fm-file-properties.h"
 #include "fm-clipboard.h"
