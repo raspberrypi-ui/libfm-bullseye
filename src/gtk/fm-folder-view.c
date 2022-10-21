@@ -89,6 +89,7 @@
 #include <stdlib.h>
 #include <gdk/gdkkeysyms.h>
 
+
 #include "fm-folder-view.h"
 #include "fm-file-properties.h"
 #include "fm-clipboard.h"
@@ -1320,8 +1321,9 @@ static void on_menu(GtkAction* act, FmFolderView* fv)
 
     /* open popup */
     gtk_ui_manager_ensure_update(ui);
-    gtk_menu_popup(popup, NULL, NULL, popup_position_func, fv, 3,
-                   gtk_get_current_event_time());
+    //gtk_menu_popup(popup, NULL, NULL, popup_position_func, fv, 3,
+    //               gtk_get_current_event_time());
+    gtk_menu_popup_at_pointer (popup, NULL);
 }
 
 /* handle 'Menu' and 'Shift+F10' here */
@@ -1434,8 +1436,9 @@ static void on_file_menu(GtkAction* act, FmFolderView* fv)
         iface->get_custom_menu_callbacks(fv, &update_popup, &open_folders);
         popup = _make_file_menu(fv, win, update_popup, open_folders, files);
         fm_file_info_list_unref(files);
-        gtk_menu_popup(popup, NULL, NULL, popup_position_func, fv, 3,
-                       gtk_get_current_event_time());
+        //gtk_menu_popup(popup, NULL, NULL, popup_position_func, fv, 3,
+        //               gtk_get_current_event_time());
+        gtk_menu_popup_at_pointer (popup, NULL);
     }
 }
 
@@ -1820,8 +1823,9 @@ void fm_folder_view_item_clicked(FmFolderView* fv, GtkTreePath* path,
             files = iface->dup_selected_files(fv);
             popup = _make_file_menu(fv, win, update_popup, open_folders, files);
             fm_file_info_list_unref(files);
-            gtk_menu_popup(popup, NULL, NULL, popup_position_func, fv, 3,
-                           gtk_get_current_event_time());
+            //gtk_menu_popup(popup, NULL, NULL, popup_position_func, fv, 3,
+            //               gtk_get_current_event_time());
+            gtk_menu_popup_at_pointer (popup, NULL);
         }
         else /* no files are selected. Show context menu of current folder. */
             on_menu(NULL, fv);
