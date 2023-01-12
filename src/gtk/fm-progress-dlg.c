@@ -205,7 +205,7 @@ static gint on_ask_rename(FmFileOpsJob* job, FmFileInfo* src, FmFileInfo* dest, 
     dest_fi = GTK_LABEL(gtk_builder_get_object(builder, "dest_fi"));
     filename = GTK_ENTRY(gtk_builder_get_object(builder, "filename"));
     apply_all = GTK_TOGGLE_BUTTON(gtk_builder_get_object(builder, "apply_all"));
-    gtk_window_set_transient_for(GTK_WINDOW(dlg), GTK_WINDOW(data->dlg));
+    gtk_window_set_transient_for(GTK_WINDOW(dlg), GTK_WINDOW(data->parent));
 
     gtk_image_set_from_gicon(src_icon, G_ICON(icon), GTK_ICON_SIZE_DIALOG);
     disp_size = fm_file_info_get_disp_size(src);
