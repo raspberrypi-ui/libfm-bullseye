@@ -222,7 +222,7 @@ struct ChildSetup
 static void child_setup(gpointer user_data)
 {
     struct ChildSetup* data = (struct ChildSetup*)user_data;
-    if(data->sn_id)
+    if(data->sn_id && g_strcmp0 (g_getenv ("XDG_SESSION_TYPE"), "wayland"))
         g_setenv ("DESKTOP_STARTUP_ID", data->sn_id, TRUE);
     /* Move child to grandparent group so it will not die with parent */
     setpgid(0, data->pgid);
