@@ -4163,7 +4163,7 @@ exo_icon_view_paint_item (ExoIconView     *icon_view,
 
   //rtl = gtk_widget_get_direction (GTK_WIDGET (icon_view)) == GTK_TEXT_DIR_RTL;
 
-  if (item->selected && !(gtk_widget_get_state_flags (GTK_WIDGET (icon_view)) & GTK_STATE_FLAG_BACKDROP))
+  if (item->selected)
     {
       flags = GTK_CELL_RENDERER_SELECTED;
       //state = gtk_widget_has_focus (icon_view) ? GTK_STATE_SELECTED : GTK_STATE_ACTIVE;

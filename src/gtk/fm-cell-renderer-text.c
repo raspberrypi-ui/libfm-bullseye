@@ -347,6 +347,8 @@ static void fm_cell_renderer_text_render(GtkCellRenderer *cell,
         else
             state = GTK_STATE_FLAG_SELECTED;
 
+        if (gtk_widget_get_state_flags (widget) & GTK_STATE_FLAG_BACKDROP) state |= GTK_STATE_FLAG_BACKDROP;
+
         gtk_style_context_get_background_color(style, state, &clr);
         gdk_cairo_rectangle(cr, &rect);
         gdk_cairo_set_source_rgba(cr, &clr);
