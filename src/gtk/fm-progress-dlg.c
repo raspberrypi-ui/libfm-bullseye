@@ -275,7 +275,9 @@ static gint on_ask_rename(FmFileOpsJob* job, FmFileInfo* src, FmFileInfo* dest, 
 
     g_object_unref(builder);
 
+    gtk_widget_hide (data->dlg);
     res = gtk_dialog_run(dlg);
+    gtk_widget_show (data->dlg);
     switch(res)
     {
     case RESPONSE_RENAME:
