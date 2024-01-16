@@ -1,0 +1,6 @@
+*.o
+*.lo
+*.gmo
+*.dirstamp
+*.pc
+.deps/
