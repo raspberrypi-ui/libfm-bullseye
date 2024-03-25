@@ -1505,6 +1505,11 @@ static void on_change_type(GtkRadioAction* act, GtkRadioAction* cur, FmFolderVie
     }
 }
 
+static void remove_popup (gpointer popup, GObject *)
+{
+    if (popup && gtk_menu_get_attach_widget (popup)) gtk_menu_detach (popup);
+}
+
 static void on_ui_destroy(gpointer ui_ptr)
 {
     GtkUIManager* ui = (GtkUIManager*)ui_ptr;
@@ -1516,7 +1521,7 @@ static void on_ui_destroy(gpointer ui_ptr)
 
     if (win != NULL) /* it might be already destroyed */
     {
-        g_object_weak_unref(G_OBJECT(win), (GWeakNotify)gtk_menu_detach, popup);
+        g_object_weak_unref(G_OBJECT(win), (GWeakNotify)remove_popup, popup);
         groups = gtk_accel_groups_from_object(G_OBJECT(win));
         if(g_slist_find(groups, accel_grp) != NULL)
             gtk_window_remove_accel_group(GTK_WINDOW(win), accel_grp);
@@ -1624,7 +1629,7 @@ GtkMenu* fm_folder_view_add_popup(FmFolderView* fv, GtkWindow* parent,
     accel_grp = gtk_ui_manager_get_accel_group(ui);
     gtk_window_add_accel_group(parent, accel_grp);
     gtk_menu_attach_to_widget(popup, GTK_WIDGET(parent), NULL);
-    g_object_weak_ref(G_OBJECT(parent), (GWeakNotify)gtk_menu_detach, popup);
+    g_object_weak_ref(G_OBJECT(parent), (GWeakNotify)remove_popup, popup);
     g_object_unref(act_grp);
     g_object_set_qdata_full(G_OBJECT(fv), ui_quark, ui, on_ui_destroy);
     /* we bind popup to ui so don't handle qdata change here */
