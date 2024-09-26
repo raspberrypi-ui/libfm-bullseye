@@ -356,7 +356,7 @@ static void _change_icon(GtkWidget *dlg, FmFilePropData *data)
     g_signal_connect(gtk_builder_get_object(builder,"files"), "toggled", G_CALLBACK(on_toggle_files), notebook);
 
     gtk_window_set_default_size(GTK_WINDOW(chooser_dlg), 600, 440);
-    gtk_window_set_transient_for(GTK_WINDOW(chooser_dlg), GTK_WINDOW(dlg));
+    //gtk_window_set_transient_for(GTK_WINDOW(chooser_dlg), GTK_WINDOW(dlg));
 
     preview = gtk_image_new();
     gtk_widget_show(preview);
@@ -417,16 +417,19 @@ static void _change_icon(GtkWidget *dlg, FmFilePropData *data)
         if (gtk_notebook_get_current_page(GTK_NOTEBOOK(notebook)) == 0)
         {
             GList *sels = gtk_icon_view_get_selected_items(thread_data.view);
-            GtkTreePath *tp = (GtkTreePath*)sels->data;
-            GtkTreeIter it;
-            if (gtk_tree_model_get_iter(GTK_TREE_MODEL(thread_data.model), &it, tp))
+            if (sels)
             {
-                gtk_tree_model_get(GTK_TREE_MODEL(thread_data.model), &it, 1, &icon_name, -1);
+                GtkTreePath *tp = (GtkTreePath*)sels->data;
+                GtkTreeIter it;
+                if (gtk_tree_model_get_iter(GTK_TREE_MODEL(thread_data.model), &it, tp))
+                {
+                    gtk_tree_model_get(GTK_TREE_MODEL(thread_data.model), &it, 1, &icon_name, -1);
+                }
+                g_list_foreach(sels, (GFunc)gtk_tree_path_free, NULL);
+                g_list_free(sels);
+                if (icon_name)
+                    gtk_image_set_from_icon_name(data->icon, icon_name, GTK_ICON_SIZE_DIALOG);
             }
-            g_list_foreach(sels, (GFunc)gtk_tree_path_free, NULL);
-            g_list_free(sels);
-            if (icon_name)
-                gtk_image_set_from_icon_name(data->icon, icon_name, GTK_ICON_SIZE_DIALOG);
         }
         else
         {
