@@ -108,6 +108,10 @@ struct _FmStandardViewClass
     /* void (*column_widths_changed)(); */
 };
 
+// for gestures
+GtkTreePath *gpath;
+gboolean longpress = FALSE;
+
 static void fm_standard_view_dispose(GObject *object);
 
 static void fm_standard_view_view_init(FmFolderViewInterface* iface);
@@ -542,6 +546,18 @@ static gboolean on_drag_motion(GtkWidget *dest_widget,
     return ret;
 }
 
+static void on_fv_gesture_pressed (GtkGestureLongPress *, gdouble x, gdouble y, FmStandardView* fv)
+{
+    longpress = TRUE;
+    exo_icon_view_get_item_at_pos ((ExoIconView*)fv->view, x, y, &gpath, NULL);
+}
+
+static void on_fv_gesture_end (GtkGestureLongPress *, GdkEventSequence *, FmStandardView* fv)
+{
+    if (longpress) fm_folder_view_item_clicked  (fv, gpath, FM_FV_CONTEXT_MENU, 0);
+    longpress = FALSE;
+}
+
 static inline void create_icon_view(FmStandardView* fv, GList* sels)
 {
     GList *l;
@@ -652,6 +668,13 @@ static inline void create_icon_view(FmStandardView* fv, GList* sels)
     fv->renderer_text = g_object_ref_sink(render);
     exo_icon_view_set_search_column((ExoIconView*)fv->view, FM_FOLDER_MODEL_COL_NAME);
     g_signal_connect(fv->view, "item-activated", G_CALLBACK(on_icon_view_item_activated), fv);
+
+    GtkGesture *gesture = gtk_gesture_long_press_new (fv->view);
+    gtk_gesture_single_set_touch_only (GTK_GESTURE_SINGLE (gesture), FALSE);
+    g_signal_connect (gesture, "pressed", G_CALLBACK (on_fv_gesture_pressed), fv);
+    g_signal_connect (gesture, "end", G_CALLBACK (on_fv_gesture_end), fv);
+    gtk_event_controller_set_propagation_phase (GTK_EVENT_CONTROLLER (gesture), GTK_PHASE_CAPTURE);
+
     g_signal_connect(fv->view, "selection-changed", G_CALLBACK(on_sel_changed), fv);
     exo_icon_view_set_model((ExoIconView*)fv->view, (GtkTreeModel*)fv->model);
     exo_icon_view_set_selection_mode((ExoIconView*)fv->view, fv->sel_mode);
@@ -1020,6 +1043,20 @@ static void _check_tree_columns_defaults(FmStandardView* fv)
     g_slist_free(cols_list);
 }
 
+static void on_lv_gesture_pressed (GtkGestureLongPress *, gdouble x, gdouble y, FmStandardView* fv)
+{
+    GtkTreeViewColumn* col;
+    longpress = TRUE;
+
+    gtk_tree_view_get_path_at_pos(GTK_TREE_VIEW(fv->view), x, y, &gpath, &col, NULL, NULL);
+}
+
+static void on_lv_gesture_end (GtkGestureLongPress *, GdkEventSequence *, FmStandardView* fv)
+{
+    if (longpress) fm_folder_view_item_clicked  (fv, gpath, FM_FV_CONTEXT_MENU, 0);
+    longpress = FALSE;
+}
+
 static inline void create_list_view(FmStandardView* fv, GList* sels)
 {
     GtkTreeSelection* ts;
@@ -1057,6 +1094,13 @@ static inline void create_list_view(FmStandardView* fv, GList* sels)
     gtk_tree_selection_set_mode(ts, fv->sel_mode);
     for(l = sels;l;l=l->next)
         gtk_tree_selection_select_path(ts, (GtkTreePath*)l->data);
+
+    GtkGesture *gesture = gtk_gesture_long_press_new (fv->view);
+    gtk_gesture_single_set_touch_only (GTK_GESTURE_SINGLE (gesture), FALSE);
+    g_signal_connect (gesture, "pressed", G_CALLBACK (on_lv_gesture_pressed), fv);
+    g_signal_connect (gesture, "end", G_CALLBACK (on_lv_gesture_end), fv);
+    gtk_event_controller_set_propagation_phase (GTK_EVENT_CONTROLLER (gesture), GTK_PHASE_CAPTURE);
+
 }
 
 static void unset_view(FmStandardView* fv)
