@@ -109,8 +109,8 @@ struct _FmStandardViewClass
 };
 
 // for gestures
-GtkTreePath *gpath = NULL;
-gboolean longpress = FALSE;
+static GtkTreePath *gpath = NULL;
+static gboolean longpress = FALSE;
 
 static void fm_standard_view_dispose(GObject *object);
 
@@ -549,13 +549,13 @@ static gboolean on_drag_motion(GtkWidget *dest_widget,
 static void on_fv_gesture_pressed (GtkGestureLongPress *, gdouble x, gdouble y, FmStandardView* fv)
 {
     longpress = TRUE;
-    exo_icon_view_get_item_at_pos ((ExoIconView*)fv->view, x, y, &gpath, NULL);
-    exo_icon_view_clear_rename ((ExoIconView*)fv->view);
+    exo_icon_view_get_item_at_pos ((ExoIconView*) fv->view, x, y, &gpath, NULL);
+    exo_icon_view_clear_rename ((ExoIconView*) fv->view);
 }
 
 static void on_fv_gesture_end (GtkGestureLongPress *, GdkEventSequence *, FmStandardView* fv)
 {
-    if (longpress) fm_folder_view_item_clicked  (fv, gpath, FM_FV_CONTEXT_MENU, 0);
+    if (longpress) fm_folder_view_item_clicked  ((FmFolderView *) fv, gpath, FM_FV_CONTEXT_MENU, 0);
     if (gpath) gtk_tree_path_free (gpath);
     gpath = NULL;
     longpress = FALSE;
@@ -1051,14 +1051,14 @@ static void on_lv_gesture_pressed (GtkGestureLongPress *, gdouble x, gdouble y, 
     GtkTreeViewColumn* col;
     int bx, by;
     longpress = TRUE;
-    gtk_tree_view_convert_widget_to_bin_window_coords (GTK_TREE_VIEW(fv->view), x, y, &bx, &by);
-    gtk_tree_view_get_path_at_pos (GTK_TREE_VIEW(fv->view), bx, by, &gpath, &col, NULL, NULL);
-    exo_tree_view_clear_rename ((ExoTreeView*)fv->view);
+    gtk_tree_view_convert_widget_to_bin_window_coords (GTK_TREE_VIEW (fv->view), x, y, &bx, &by);
+    gtk_tree_view_get_path_at_pos (GTK_TREE_VIEW (fv->view), bx, by, &gpath, &col, NULL, NULL);
+    exo_tree_view_clear_rename ((ExoTreeView*) fv->view);
 }
 
 static void on_lv_gesture_end (GtkGestureLongPress *, GdkEventSequence *, FmStandardView* fv)
 {
-    if (longpress) fm_folder_view_item_clicked  (fv, gpath, FM_FV_CONTEXT_MENU, 0);
+    if (longpress) fm_folder_view_item_clicked  ((FmFolderView *) fv, gpath, FM_FV_CONTEXT_MENU, 0);
     if (gpath) gtk_tree_path_free (gpath);
     gpath = NULL;
     longpress = FALSE;
