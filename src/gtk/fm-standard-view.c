@@ -555,6 +555,7 @@ static void on_fv_gesture_pressed (GtkGestureLongPress *, gdouble x, gdouble y, 
 static void on_fv_gesture_end (GtkGestureLongPress *, GdkEventSequence *, FmStandardView* fv)
 {
     if (longpress) fm_folder_view_item_clicked  (fv, gpath, FM_FV_CONTEXT_MENU, 0);
+    gtk_tree_path_free (gpath);
     longpress = FALSE;
 }
 
@@ -1046,14 +1047,16 @@ static void _check_tree_columns_defaults(FmStandardView* fv)
 static void on_lv_gesture_pressed (GtkGestureLongPress *, gdouble x, gdouble y, FmStandardView* fv)
 {
     GtkTreeViewColumn* col;
+    int bx, by;
     longpress = TRUE;
-
-    gtk_tree_view_get_path_at_pos(GTK_TREE_VIEW(fv->view), x, y, &gpath, &col, NULL, NULL);
+    gtk_tree_view_convert_widget_to_bin_window_coords (GTK_TREE_VIEW(fv->view), x, y, &bx, &by);
+    gtk_tree_view_get_path_at_pos (GTK_TREE_VIEW(fv->view), bx, by, &gpath, &col, NULL, NULL);
 }
 
 static void on_lv_gesture_end (GtkGestureLongPress *, GdkEventSequence *, FmStandardView* fv)
 {
     if (longpress) fm_folder_view_item_clicked  (fv, gpath, FM_FV_CONTEXT_MENU, 0);
+    gtk_tree_path_free (gpath);
     longpress = FALSE;
 }
 
