@@ -98,6 +98,9 @@ struct _FmStandardView
     /* for columns width handling */
     gint updated_col;
     gboolean name_updated;
+
+    GtkGesture *igesture;
+    GtkGesture *lgesture;
 };
 
 struct _FmStandardViewClass
@@ -382,6 +385,17 @@ static void fm_standard_view_dispose(GObject *object)
     {
         g_signal_handler_disconnect(fm_config, self->show_full_names_handler);
         self->show_full_names_handler = 0;
+    }
+
+    if (self->igesture)
+    {
+        g_object_unref (self->igesture);
+        self->igesture = NULL;
+    }
+    if (self->lgesture)
+    {
+        g_object_unref (self->lgesture);
+        self->lgesture = NULL;
     }
     (* G_OBJECT_CLASS(fm_standard_view_parent_class)->dispose)(object);
 }
@@ -672,11 +686,14 @@ static inline void create_icon_view(FmStandardView* fv, GList* sels)
     exo_icon_view_set_search_column((ExoIconView*)fv->view, FM_FOLDER_MODEL_COL_NAME);
     g_signal_connect(fv->view, "item-activated", G_CALLBACK(on_icon_view_item_activated), fv);
 
-    GtkGesture *gesture = gtk_gesture_long_press_new (fv->view);
-    gtk_gesture_single_set_touch_only (GTK_GESTURE_SINGLE (gesture), FALSE);
-    g_signal_connect (gesture, "pressed", G_CALLBACK (on_fv_gesture_pressed), fv);
-    g_signal_connect (gesture, "end", G_CALLBACK (on_fv_gesture_end), fv);
-    gtk_event_controller_set_propagation_phase (GTK_EVENT_CONTROLLER (gesture), GTK_PHASE_CAPTURE);
+    if (!fv->igesture)
+    {
+        fv->igesture = gtk_gesture_long_press_new (fv->view);
+        gtk_gesture_single_set_touch_only (GTK_GESTURE_SINGLE (fv->igesture), FALSE);
+        g_signal_connect (fv->igesture, "pressed", G_CALLBACK (on_fv_gesture_pressed), fv);
+        g_signal_connect (fv->igesture, "end", G_CALLBACK (on_fv_gesture_end), fv);
+        gtk_event_controller_set_propagation_phase (GTK_EVENT_CONTROLLER (fv->igesture), GTK_PHASE_CAPTURE);
+    }
 
     g_signal_connect(fv->view, "selection-changed", G_CALLBACK(on_sel_changed), fv);
     exo_icon_view_set_model((ExoIconView*)fv->view, (GtkTreeModel*)fv->model);
@@ -1102,12 +1119,14 @@ static inline void create_list_view(FmStandardView* fv, GList* sels)
     for(l = sels;l;l=l->next)
         gtk_tree_selection_select_path(ts, (GtkTreePath*)l->data);
 
-    GtkGesture *gesture = gtk_gesture_long_press_new (fv->view);
-    gtk_gesture_single_set_touch_only (GTK_GESTURE_SINGLE (gesture), FALSE);
-    g_signal_connect (gesture, "pressed", G_CALLBACK (on_lv_gesture_pressed), fv);
-    g_signal_connect (gesture, "end", G_CALLBACK (on_lv_gesture_end), fv);
-    gtk_event_controller_set_propagation_phase (GTK_EVENT_CONTROLLER (gesture), GTK_PHASE_CAPTURE);
-
+    if (!fv->igesture)
+    {
+        fv->lgesture = gtk_gesture_long_press_new (fv->view);
+        gtk_gesture_single_set_touch_only (GTK_GESTURE_SINGLE (fv->lgesture), FALSE);
+        g_signal_connect (fv->lgesture, "pressed", G_CALLBACK (on_lv_gesture_pressed), fv);
+        g_signal_connect (fv->lgesture, "end", G_CALLBACK (on_lv_gesture_end), fv);
+        gtk_event_controller_set_propagation_phase (GTK_EVENT_CONTROLLER (fv->lgesture), GTK_PHASE_CAPTURE);
+    }
 }
 
 static void unset_view(FmStandardView* fv)

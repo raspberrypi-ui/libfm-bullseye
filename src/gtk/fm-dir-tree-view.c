@@ -503,6 +503,11 @@ static void fm_dir_tree_view_dispose(GObject *object)
         g_object_unref(view->dd);
         view->dd = NULL;
     }
+    if (view->gesture)
+    {
+        g_object_unref (view->gesture);
+        view->gesture = NULL;
+    }
 
     G_OBJECT_CLASS(fm_dir_tree_view_parent_class)->dispose(object);
 }
@@ -576,11 +581,11 @@ static void fm_dir_tree_view_init(FmDirTreeView *view)
     obj = gtk_widget_get_accessible(GTK_WIDGET(view));
     atk_object_set_description(obj, _("Shows tree of directories in sidebar"));
 
-    GtkGesture *gesture = gtk_gesture_long_press_new ((GtkWidget *)view);
-    gtk_gesture_single_set_touch_only (GTK_GESTURE_SINGLE (gesture), FALSE);
-    g_signal_connect (gesture, "pressed", G_CALLBACK (on_dv_gesture_pressed), view);
-    g_signal_connect (gesture, "end", G_CALLBACK (on_dv_gesture_end), view);
-    gtk_event_controller_set_propagation_phase (GTK_EVENT_CONTROLLER (gesture), GTK_PHASE_CAPTURE);
+    view->gesture = gtk_gesture_long_press_new ((GtkWidget *)view);
+    gtk_gesture_single_set_touch_only (GTK_GESTURE_SINGLE (view->gesture), FALSE);
+    g_signal_connect (view->gesture, "pressed", G_CALLBACK (on_dv_gesture_pressed), view);
+    g_signal_connect (view->gesture, "end", G_CALLBACK (on_dv_gesture_end), view);
+    gtk_event_controller_set_propagation_phase (GTK_EVENT_CONTROLLER (view->gesture), GTK_PHASE_CAPTURE);
 }
 
 /**

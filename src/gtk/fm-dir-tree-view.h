@@ -53,6 +53,7 @@ struct _FmDirTreeView
 
     /* <private> */
     FmDndDest* FM_SEAL(dd);
+    GtkGesture *gesture;
     gpointer _reserved1;
 
     /* used for chdir */

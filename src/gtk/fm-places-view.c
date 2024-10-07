@@ -467,6 +467,12 @@ static void fm_places_view_dispose(GObject *object)
         self->dnd_dest = NULL;
     }
 
+    if (self->gesture)
+    {
+        g_object_unref (self->gesture);
+        self->gesture = NULL;
+    }
+
     G_OBJECT_CLASS(fm_places_view_parent_class)->dispose(object);
 }
 
@@ -567,11 +573,11 @@ static void fm_places_view_init(FmPlacesView *self)
     obj = gtk_widget_get_accessible(GTK_WIDGET(self));
     atk_object_set_description(obj, _("Shows list of common places, devices, and bookmarks in sidebar"));
 
-    GtkGesture *gesture = gtk_gesture_long_press_new ((GtkWidget *) self);
-    gtk_gesture_single_set_touch_only (GTK_GESTURE_SINGLE (gesture), FALSE);
-    g_signal_connect (gesture, "pressed", G_CALLBACK (on_pv_gesture_pressed), self);
-    g_signal_connect (gesture, "end", G_CALLBACK (on_pv_gesture_end), self);
-    gtk_event_controller_set_propagation_phase (GTK_EVENT_CONTROLLER (gesture), GTK_PHASE_CAPTURE);
+    self->gesture = gtk_gesture_long_press_new ((GtkWidget *) self);
+    gtk_gesture_single_set_touch_only (GTK_GESTURE_SINGLE (self->gesture), FALSE);
+    g_signal_connect (self->gesture, "pressed", G_CALLBACK (on_pv_gesture_pressed), self);
+    g_signal_connect (self->gesture, "end", G_CALLBACK (on_pv_gesture_end), self);
+    gtk_event_controller_set_propagation_phase (GTK_EVENT_CONTROLLER (self->gesture), GTK_PHASE_CAPTURE);
 }
 
 /*----------------------------------------------------------------------
