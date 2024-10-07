@@ -336,6 +336,8 @@ void                          exo_icon_view_set_search_position_func  (ExoIconVi
                                                                        gpointer                      search_position_data,
                                                                        GDestroyNotify                search_position_destroy);
 
+void                  exo_icon_view_clear_rename (GtkWidget *widget);
+
 G_END_DECLS
 
 #endif /* __EXO_ICON_VIEW_H__ */

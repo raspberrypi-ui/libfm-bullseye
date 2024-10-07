@@ -2508,7 +2508,11 @@ exo_icon_view_stop_editing (ExoIconView *icon_view,
   gtk_cell_editable_remove_widget (icon_view->priv->editable);
 }
 
-
+void exo_icon_view_clear_rename (GtkWidget *widget)
+{
+  ExoIconView *icon_view = EXO_ICON_VIEW (widget);
+  icon_view->priv->pending_rename = 0;
+}
 
 static gboolean
 exo_icon_view_button_press_event (GtkWidget      *widget,

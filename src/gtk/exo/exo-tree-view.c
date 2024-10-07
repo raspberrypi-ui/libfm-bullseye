@@ -335,6 +335,12 @@ static gboolean list_rename_timer (gpointer data)
   return FALSE;
 }
 
+void exo_tree_view_clear_rename (GtkWidget *widget)
+{
+  ExoTreeView *tree_view = EXO_TREE_VIEW (widget);
+  tree_view->priv->pending_rename = 0;
+}
+
 static gboolean
 exo_tree_view_button_press_event (GtkWidget      *widget,
                                   GdkEventButton *event)
