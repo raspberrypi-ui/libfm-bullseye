@@ -59,6 +59,10 @@ enum
     N_SIGNALS
 };
 
+// for gestures
+static GtkTreePath *gpath = NULL;
+static gboolean longpress = FALSE;
+
 static guint signals[N_SIGNALS];
 
 static void fm_dir_tree_view_dispose            (GObject *object);
@@ -515,10 +519,6 @@ static gboolean _fm_dir_tree_view_select_function(GtkTreeSelection *selection,
         return FALSE;
     return (fm_dir_tree_row_get_file_info(FM_DIR_TREE_MODEL(model), &it) != NULL);
 }
-
-// for gestures
-static GtkTreePath *gpath = NULL;
-static gboolean longpress = FALSE;
 
 static void on_dv_gesture_pressed (GtkGestureLongPress *, gdouble x, gdouble y, FmDirTreeView* fv)
 {

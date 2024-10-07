@@ -67,6 +67,10 @@ enum
     N_SIGNALS
 };
 
+// for gestures
+static GtkTreePath *gpath = NULL;
+static gboolean longpress = FALSE;
+
 static void activate_row(FmPlacesView* view, guint button, GtkTreePath* tree_path);
 static void on_row_activated( GtkTreeView* view, GtkTreePath* tree_path, GtkTreeViewColumn *col);
 static gboolean on_button_press(GtkWidget* view, GdkEventButton* evt);
@@ -480,6 +484,32 @@ static void fm_places_view_finalize(GObject *object)
     G_OBJECT_CLASS(fm_places_view_parent_class)->finalize(object);
 }
 
+static void on_pv_gesture_pressed (GtkGestureLongPress *, gdouble x, gdouble y, FmPlacesView* fv)
+{
+    GtkTreeViewColumn* col;
+    int bx, by;
+    longpress = TRUE;
+    gtk_tree_view_convert_widget_to_bin_window_coords (GTK_TREE_VIEW (fv), x, y, &bx, &by);
+    gtk_tree_view_get_path_at_pos (GTK_TREE_VIEW (fv), bx, by, &gpath, &col, NULL, NULL);
+}
+
+static void fm_places_item_popup (GtkWidget *widget, GtkTreeIter *it, guint32 time);
+
+static void on_pv_gesture_end (GtkGestureLongPress *, GdkEventSequence *, FmPlacesView* fv)
+{
+    GtkTreeModel *model;
+    GtkTreeIter it;
+    if (longpress)
+    {
+        model = gtk_tree_view_get_model (GTK_TREE_VIEW (fv));
+        if (model && gtk_tree_model_get_iter (model, &it, gpath))
+                fm_places_item_popup (GTK_WIDGET (fv), &it, 0);
+    }
+    if (gpath) gtk_tree_path_free (gpath);
+    gpath = NULL;
+    longpress = FALSE;
+}
+
 static void fm_places_view_init(FmPlacesView *self)
 {
     GtkTreeViewColumn* col;
@@ -536,6 +566,12 @@ static void fm_places_view_init(FmPlacesView *self)
     g_signal_connect(self->dnd_dest, "files-dropped", G_CALLBACK(on_dnd_dest_files_dropped), self);
     obj = gtk_widget_get_accessible(GTK_WIDGET(self));
     atk_object_set_description(obj, _("Shows list of common places, devices, and bookmarks in sidebar"));
+
+    GtkGesture *gesture = gtk_gesture_long_press_new ((GtkWidget *) self);
+    gtk_gesture_single_set_touch_only (GTK_GESTURE_SINGLE (gesture), FALSE);
+    g_signal_connect (gesture, "pressed", G_CALLBACK (on_pv_gesture_pressed), self);
+    g_signal_connect (gesture, "end", G_CALLBACK (on_pv_gesture_end), self);
+    gtk_event_controller_set_propagation_phase (GTK_EVENT_CONTROLLER (gesture), GTK_PHASE_CAPTURE);
 }
 
 /*----------------------------------------------------------------------
