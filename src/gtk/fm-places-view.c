@@ -574,7 +574,7 @@ static void fm_places_view_init(FmPlacesView *self)
     atk_object_set_description(obj, _("Shows list of common places, devices, and bookmarks in sidebar"));
 
     self->gesture = gtk_gesture_long_press_new ((GtkWidget *) self);
-    gtk_gesture_single_set_touch_only (GTK_GESTURE_SINGLE (self->gesture), FALSE);
+    gtk_gesture_single_set_touch_only (GTK_GESTURE_SINGLE (self->gesture), TRUE);
     g_signal_connect (self->gesture, "pressed", G_CALLBACK (on_pv_gesture_pressed), self);
     g_signal_connect (self->gesture, "end", G_CALLBACK (on_pv_gesture_end), self);
     gtk_event_controller_set_propagation_phase (GTK_EVENT_CONTROLLER (self->gesture), GTK_PHASE_CAPTURE);

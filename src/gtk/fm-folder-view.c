@@ -169,7 +169,7 @@ static void on_invert_select(GtkAction* act, FmFolderView* fv);
 static void on_rename(GtkAction* act, FmFolderView* fv);
 static void on_prop(GtkAction* act, FmFolderView* fv);
 static void on_file_prop(GtkAction* act, FmFolderView* fv);
-static void on_menu(GtkAction* act, FmFolderView* fv);
+static void on_menu(GtkAction* act, FmFolderView* fv, int x, int y);
 static void on_file_menu(GtkAction* act, FmFolderView* fv);
 static void on_show_hidden(GtkToggleAction* act, FmFolderView* fv);
 static void on_mingle_dirs(GtkToggleAction* act, FmFolderView* fv);
@@ -1172,7 +1172,7 @@ static void popup_position_func(GtkMenu *menu, gint *x, gint *y,
         *y = MAX(mr.y, *y); /* place menu below cursor */
 }
 
-static void on_menu(GtkAction* act, FmFolderView* fv)
+static void on_menu(GtkAction* act, FmFolderView* fv, int x, int y)
 {
     GtkUIManager *ui = g_object_get_qdata(G_OBJECT(fv), ui_quark);
     GtkMenu *popup = g_object_get_qdata(G_OBJECT(fv), popup_quark);
@@ -1322,7 +1322,13 @@ static void on_menu(GtkAction* act, FmFolderView* fv)
     gtk_ui_manager_ensure_update(ui);
     //gtk_menu_popup(popup, NULL, NULL, popup_position_func, fv, 3,
     //               gtk_get_current_event_time());
+    if (x == -1 || y == -1)
     gtk_menu_popup_at_pointer (popup, NULL);
+    else
+    {
+        GdkRectangle rect = {x, y, 0, 0};
+        gtk_menu_popup_at_rect (popup, gtk_widget_get_window (fv), &rect, GDK_GRAVITY_CENTER, GDK_GRAVITY_NORTH_WEST, NULL);
+    }
 }
 
 /* handle 'Menu' and 'Shift+F10' here */
@@ -1337,7 +1343,7 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *evt, FmFolderView* 
     }
     else if(evt->keyval == GDK_KEY_Menu && modifier == GDK_CONTROL_MASK)
     {
-        on_menu(NULL, fv);
+        on_menu(NULL, fv, -1, -1);
         return TRUE;
     }
     return FALSE;
@@ -1769,7 +1775,7 @@ void fm_folder_view_set_active(FmFolderView* fv, gboolean set)
  * Since: 1.0.1
  */
 void fm_folder_view_item_clicked(FmFolderView* fv, GtkTreePath* path,
-                                 FmFolderViewClickType type, gint icon_or_label)
+                                 FmFolderViewClickType type, gint icon_or_label, gint x, gint y)
 {
     FmFolderViewInterface* iface;
     GtkTreeModel* model;
@@ -1827,12 +1833,18 @@ void fm_folder_view_item_clicked(FmFolderView* fv, GtkTreePath* path,
             files = iface->dup_selected_files(fv);
             popup = _make_file_menu(fv, win, update_popup, open_folders, files);
             fm_file_info_list_unref(files);
+            if (x == -1 || y == -1)
             //gtk_menu_popup(popup, NULL, NULL, popup_position_func, fv, 3,
             //               gtk_get_current_event_time());
             gtk_menu_popup_at_pointer (popup, NULL);
+            else
+            {
+                GdkRectangle rect = {x, y, 0, 0};
+                gtk_menu_popup_at_rect (popup, gtk_widget_get_window (fv), &rect, GDK_GRAVITY_CENTER, GDK_GRAVITY_NORTH_WEST, NULL);
+            }
         }
         else /* no files are selected. Show context menu of current folder. */
-            on_menu(NULL, fv);
+            on_menu(NULL, fv, x, y);
         break;
     default: ;
     }

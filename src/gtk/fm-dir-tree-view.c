@@ -582,7 +582,7 @@ static void fm_dir_tree_view_init(FmDirTreeView *view)
     atk_object_set_description(obj, _("Shows tree of directories in sidebar"));
 
     view->gesture = gtk_gesture_long_press_new ((GtkWidget *)view);
-    gtk_gesture_single_set_touch_only (GTK_GESTURE_SINGLE (view->gesture), FALSE);
+    gtk_gesture_single_set_touch_only (GTK_GESTURE_SINGLE (view->gesture), TRUE);
     g_signal_connect (view->gesture, "pressed", G_CALLBACK (on_dv_gesture_pressed), view);
     g_signal_connect (view->gesture, "end", G_CALLBACK (on_dv_gesture_end), view);
     gtk_event_controller_set_propagation_phase (GTK_EVENT_CONTROLLER (view->gesture), GTK_PHASE_CAPTURE);

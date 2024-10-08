@@ -196,12 +196,12 @@ static void on_auto_selection_delay_changed(FmConfig* cfg, FmStandardView* fv)
 
 static void on_icon_view_item_activated(ExoIconView* iv, GtkTreePath* path, gint icon_or_label, FmStandardView* fv)
 {
-    fm_folder_view_item_clicked(FM_FOLDER_VIEW(fv), path, FM_FV_ACTIVATED, icon_or_label);
+    fm_folder_view_item_clicked(FM_FOLDER_VIEW(fv), path, FM_FV_ACTIVATED, icon_or_label, -1, -1);
 }
 
 static void on_tree_view_row_activated(GtkTreeView* tv, GtkTreePath* path, GtkTreeViewColumn* col, FmStandardView* fv)
 {
-    fm_folder_view_item_clicked(FM_FOLDER_VIEW(fv), path, FM_FV_ACTIVATED, 0);
+    fm_folder_view_item_clicked(FM_FOLDER_VIEW(fv), path, FM_FV_ACTIVATED, 0, -1, -1);
 }
 
 static void fm_standard_view_init(FmStandardView *self)
@@ -569,7 +569,7 @@ static void on_fv_gesture_pressed (GtkGestureLongPress *, gdouble x, gdouble y, 
 
 static void on_fv_gesture_end (GtkGestureLongPress *, GdkEventSequence *, FmStandardView* fv)
 {
-    if (longpress) fm_folder_view_item_clicked  ((FmFolderView *) fv, gpath, FM_FV_CONTEXT_MENU, 0);
+    if (longpress) fm_folder_view_item_clicked  ((FmFolderView *) fv, gpath, FM_FV_CONTEXT_MENU, 0, -1, -1);
     if (gpath) gtk_tree_path_free (gpath);
     gpath = NULL;
     longpress = FALSE;
@@ -689,7 +689,7 @@ static inline void create_icon_view(FmStandardView* fv, GList* sels)
     if (!fv->igesture)
     {
         fv->igesture = gtk_gesture_long_press_new (fv->view);
-        gtk_gesture_single_set_touch_only (GTK_GESTURE_SINGLE (fv->igesture), FALSE);
+        gtk_gesture_single_set_touch_only (GTK_GESTURE_SINGLE (fv->igesture), TRUE);
         g_signal_connect (fv->igesture, "pressed", G_CALLBACK (on_fv_gesture_pressed), fv);
         g_signal_connect (fv->igesture, "end", G_CALLBACK (on_fv_gesture_end), fv);
         gtk_event_controller_set_propagation_phase (GTK_EVENT_CONTROLLER (fv->igesture), GTK_PHASE_CAPTURE);
@@ -1075,7 +1075,7 @@ static void on_lv_gesture_pressed (GtkGestureLongPress *, gdouble x, gdouble y, 
 
 static void on_lv_gesture_end (GtkGestureLongPress *, GdkEventSequence *, FmStandardView* fv)
 {
-    if (longpress) fm_folder_view_item_clicked  ((FmFolderView *) fv, gpath, FM_FV_CONTEXT_MENU, 0);
+    if (longpress) fm_folder_view_item_clicked  ((FmFolderView *) fv, gpath, FM_FV_CONTEXT_MENU, 0, -1, -1);
     if (gpath) gtk_tree_path_free (gpath);
     gpath = NULL;
     longpress = FALSE;
@@ -1122,7 +1122,7 @@ static inline void create_list_view(FmStandardView* fv, GList* sels)
     if (!fv->igesture)
     {
         fv->lgesture = gtk_gesture_long_press_new (fv->view);
-        gtk_gesture_single_set_touch_only (GTK_GESTURE_SINGLE (fv->lgesture), FALSE);
+        gtk_gesture_single_set_touch_only (GTK_GESTURE_SINGLE (fv->lgesture), TRUE);
         g_signal_connect (fv->lgesture, "pressed", G_CALLBACK (on_lv_gesture_pressed), fv);
         g_signal_connect (fv->lgesture, "end", G_CALLBACK (on_lv_gesture_end), fv);
         gtk_event_controller_set_propagation_phase (GTK_EVENT_CONTROLLER (fv->lgesture), GTK_PHASE_CAPTURE);
@@ -1573,7 +1573,7 @@ static gboolean on_btn_pressed(GtkWidget* view, GdkEventButton* evt, FmStandardV
         sels = fm_standard_view_get_selected_tree_paths(fv);
         if( sels || type == FM_FV_CONTEXT_MENU )
         {
-            fm_folder_view_item_clicked(FM_FOLDER_VIEW(fv), tp, type, 0);
+            fm_folder_view_item_clicked(FM_FOLDER_VIEW(fv), tp, type, 0, -1, -1);
             if(sels)
             {
                 g_list_foreach(sels, (GFunc)gtk_tree_path_free, NULL);
