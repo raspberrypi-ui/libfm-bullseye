@@ -689,7 +689,7 @@ static inline void create_icon_view(FmStandardView* fv, GList* sels)
     if (!fv->igesture)
     {
         fv->igesture = gtk_gesture_long_press_new (fv->view);
-        gtk_gesture_single_set_touch_only (GTK_GESTURE_SINGLE (fv->igesture), TRUE);
+        gtk_gesture_single_set_touch_only (GTK_GESTURE_SINGLE (fv->igesture), fm_config->gestures_touch_only);
         g_signal_connect (fv->igesture, "pressed", G_CALLBACK (on_fv_gesture_pressed), fv);
         g_signal_connect (fv->igesture, "end", G_CALLBACK (on_fv_gesture_end), fv);
         gtk_event_controller_set_propagation_phase (GTK_EVENT_CONTROLLER (fv->igesture), GTK_PHASE_CAPTURE);
@@ -1122,7 +1122,7 @@ static inline void create_list_view(FmStandardView* fv, GList* sels)
     if (!fv->igesture)
     {
         fv->lgesture = gtk_gesture_long_press_new (fv->view);
-        gtk_gesture_single_set_touch_only (GTK_GESTURE_SINGLE (fv->lgesture), TRUE);
+        gtk_gesture_single_set_touch_only (GTK_GESTURE_SINGLE (fv->lgesture), fm_config->gestures_touch_only);
         g_signal_connect (fv->lgesture, "pressed", G_CALLBACK (on_lv_gesture_pressed), fv);
         g_signal_connect (fv->lgesture, "end", G_CALLBACK (on_lv_gesture_end), fv);
         gtk_event_controller_set_propagation_phase (GTK_EVENT_CONTROLLER (fv->lgesture), GTK_PHASE_CAPTURE);

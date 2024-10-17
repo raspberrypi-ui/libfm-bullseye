@@ -73,6 +73,7 @@ typedef struct _FmConfigClass       FmConfigClass;
 #define     FM_CONFIG_DEFAULT_CUTDOWN_MENUS     FALSE
 #define     FM_CONFIG_DEFAULT_CUTDOWN_PLACES    TRUE
 #define     FM_CONFIG_DEFAULT_REAL_EXPANDERS    FALSE
+#define     FM_CONFIG_DEFAULT_GESTURES_TOUCH_ONLY FALSE
 
 #define     FM_CONFIG_DEFAULT_PLACES_HOME       TRUE
 #define     FM_CONFIG_DEFAULT_PLACES_DESKTOP    TRUE
@@ -203,6 +204,7 @@ struct _FmConfig
     gboolean cutdown_menus;
     gboolean cutdown_places;
     gboolean real_expanders;
+    gboolean gestures_touch_only;
 
     gchar **modules_blacklist;
     gchar **modules_whitelist;
