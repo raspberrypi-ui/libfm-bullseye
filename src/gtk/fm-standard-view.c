@@ -113,7 +113,7 @@ struct _FmStandardViewClass
 
 // for gestures
 static GtkTreePath *gpath = NULL;
-static gboolean longpress = FALSE;
+gboolean longpress = FALSE;
 
 static void fm_standard_view_dispose(GObject *object);
 

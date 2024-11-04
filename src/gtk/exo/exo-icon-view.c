@@ -665,6 +665,7 @@ struct _ExoIconViewPrivate
 
 static guint icon_view_signals[LAST_SIGNAL];
 
+extern gboolean longpress;
 
 
 G_DEFINE_TYPE_WITH_CODE (ExoIconView, exo_icon_view, GTK_TYPE_CONTAINER,
@@ -2169,6 +2170,8 @@ exo_icon_view_motion_notify_event (GtkWidget      *widget,
   gint             size;
   gint             abso;
   GtkAllocation    allocation;
+
+  longpress = FALSE;
 
   exo_icon_view_maybe_begin_drag (icon_view, event);
   gtk_widget_get_allocation (widget, &allocation);
