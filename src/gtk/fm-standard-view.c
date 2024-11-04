@@ -1119,7 +1119,7 @@ static inline void create_list_view(FmStandardView* fv, GList* sels)
     for(l = sels;l;l=l->next)
         gtk_tree_selection_select_path(ts, (GtkTreePath*)l->data);
 
-    if (!fv->igesture)
+    if (!fv->lgesture)
     {
         fv->lgesture = gtk_gesture_long_press_new (fv->view);
         gtk_gesture_single_set_touch_only (GTK_GESTURE_SINGLE (fv->lgesture), fm_config->gestures_touch_only);

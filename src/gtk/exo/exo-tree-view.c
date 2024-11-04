@@ -144,6 +144,7 @@ struct _ExoTreeViewPrivate
 
 static GObjectClass *exo_tree_view_parent_class;
 
+extern gboolean longpress;
 
 
 GType
@@ -612,6 +613,8 @@ exo_tree_view_motion_notify_event (GtkWidget      *widget,
   GtkTreePath *path;
   GdkCursor   *cursor;
   GtkTreeViewColumn *column;
+
+  longpress = FALSE;
 
   /* check if the event occurred on the tree view internal window and we are in single-click mode */
   if (event->window == gtk_tree_view_get_bin_window (GTK_TREE_VIEW (tree_view)) && tree_view->priv->single_click)
