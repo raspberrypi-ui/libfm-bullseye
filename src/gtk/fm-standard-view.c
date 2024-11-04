@@ -1137,11 +1137,21 @@ static void unset_view(FmStandardView* fv)
         GtkTreeSelection* ts = gtk_tree_view_get_selection(GTK_TREE_VIEW(fv->view));
         g_signal_handlers_disconnect_by_func(ts, on_sel_changed, fv);
         g_signal_handlers_disconnect_by_func(fv->view, on_tree_view_row_activated, fv);
+        if (fv->lgesture)
+        {
+            g_object_unref (fv->lgesture);
+            fv->lgesture = NULL;
+        }
     }
     else
     {
         g_signal_handlers_disconnect_by_func(fv->view, on_sel_changed, fv);
         g_signal_handlers_disconnect_by_func(fv->view, on_icon_view_item_activated, fv);
+        if (fv->igesture)
+        {
+            g_object_unref (fv->igesture);
+            fv->igesture = NULL;
+        }
     }
     /* these signals connected by fm_standard_view_set_mode() */
     g_signal_handlers_disconnect_by_func(fv->view, on_drag_motion, fv);
