@@ -114,11 +114,11 @@ FmIcon* fm_icon_from_name(const char* name)
             /* some desktop entries have invalid icon name which contains
                suffix so let strip the suffix from such invalid name */
             dot = g_strndup(name, dot - name);
-            gicon = g_themed_icon_new_with_default_fallbacks(dot);
+            gicon = g_themed_icon_new(dot);
             g_free(dot);
         }
         else
-            gicon = g_themed_icon_new_with_default_fallbacks(name);
+            gicon = g_themed_icon_new(name);
 
         if(G_LIKELY(gicon))
         {
