@@ -201,6 +201,7 @@ static void on_icon_view_item_activated(ExoIconView* iv, GtkTreePath* path, gint
 
 static void on_tree_view_row_activated(GtkTreeView* tv, GtkTreePath* path, GtkTreeViewColumn* col, FmStandardView* fv)
 {
+    exo_tree_view_clear_rename (EXO_TREE_VIEW(fv->view));
     fm_folder_view_item_clicked(FM_FOLDER_VIEW(fv), path, FM_FV_ACTIVATED, 0, -1, -1);
 }
 
